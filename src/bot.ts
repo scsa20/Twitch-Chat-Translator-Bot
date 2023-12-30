@@ -38,8 +38,8 @@ async function onMessageHandler(
   }
   let message = msg.trim();
   let emotes: string[] = [];
-  const isBroadcaster = context.badges.broadcaster;
-  const isMod = context.badges.moderator;
+//  const isBroadcaster = context.badges.broadcaster;
+//  const isMod = context.badges.moderator;
 
   // Checks if the message has any emote(s) and removes them
   if (context.emotes) {
