@@ -4,7 +4,7 @@
   "description": "A Twitch chat bot that automatically translates users messages.",
   "main": "src/bot.js",
   "scripts": {
-    "start": "npx tsc && node src/bot.js",
+    "start": "npm_config_loglevel=error npx tsc && node src/bot.js",
     "dev": "nodemon src/bot.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -24,8 +24,12 @@
     "typescript": "^5.3.3"
   },
   "devDependencies": {
-    "@types/node": "^20.10.6",
+    "@types/node": "^25.5.0",
     "@types/tmi.js": "^1.8.4",
+    "@typescript-eslint/eslint-plugin": "^8.57.2",
+    "@typescript-eslint/parser": "^8.57.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
     "nodemon": "^3.0.1",
     "ts-node": "^10.9.1"
   }
