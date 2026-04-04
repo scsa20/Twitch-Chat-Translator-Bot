@@ -117,3 +117,14 @@ dist
 
 # TypeScript compiled files
 *.js
+
+# Config folder
+.config/
+config/
+
+# Package-lock
+package-lock.json
+
+# Left over directories from another branch
+obj/
+bin/
