@@ -9,7 +9,7 @@ A Twitch chat bot that automatically translates users messages to the chosen lan
 - First clone the repo and then `cd` to the folder.
 - Install all the dependicies and packages `yarn install`.
 - Create an .env by using ~~the only~~ your favourite text editor `nano .env`
-- The .env will have four entries, `BOT_USERNAME`, `TWITCH_OAUTH`, `CHANNEL_NAME`, and `AZURE_SUB_KEY`.
+- List of variables:
 
 > **BOT_USERNAME** is the username of the Twitch account.\
 > **TWITCH_OAUTH** is the token needed to connect to Twitch chat. You can generate one [here](https://twitchapps.com/tmi/).\
@@ -17,12 +17,13 @@ A Twitch chat bot that automatically translates users messages to the chosen lan
 > **TWITCH_CLIENT_ID** and **TWITCH_CLIENT_SECRET** required when `TWITCH_OAUTH_FLOW=true`.\
 > **TWITCH_OAUTH_REDIRECT_URI** optional; the redirect URI for OAuth callback. Defaults to `http://localhost:3000/auth/callback` or `https://localhost:3000/auth/callback` if certificates are configured.\
 > **TWITCH_OAUTH_CERT_PATH** and **TWITCH_OAUTH_KEY_PATH** optional; paths to HTTPS certificate and key files for secure local development or production use.\
-> **ENCRYPTION_KEY** optional; a 64-character hex string used to encrypt stored OAuth tokens with AES-256-GCM. If not set, a key will be auto-generated and saved to `config/encryption-key.txt` (less secure). For production, set this environment variable to a secure random key. *Note: Tokens encrypted with older versions will need to be re-authenticated.*\
+> **ENCRYPTION_KEY** optional; a 64-character hex string used to encrypt stored OAuth tokens with AES-256-GCM. If not set, a key will be auto-generated and saved to `config/encryption-key.txt` (less secure). For production, set this environment variable to a secure random key.\
 > **CHANNEL_NAME** is where you want the bot to run. Supports multiple channels (comma or space separated, e.g., `channel1 channel2` or `channel1,channel2`). Each channel has its own ignore list. Defaults to BOT_USERNAME if not set.\
 > **AZURE_SUB_KEY** Read the [prequisites in the Quickstart documentation](https://docs.microsoft.com/en-gb/azure/cognitive-services/translator/quickstart-translator) on how to create a Translator resource in Azure and generate a key. Make sure you set the Region to "Global".
 
 > **PRIMARY_LANG** is the target language you want the bot to translate to. Uses the ISO 639-1 standard. Examples: `en` for English, `ja` for Japanese, `ko` for Korean, `zh-Hans` for Simplified Chinese. Check the [Language Support](https://docs.microsoft.com/en-us/azure/cognitive-services/translator/language-support) doc to see what languages Azure supports and what the code is.\
-> **SECONDARY\_ LANG** optional entry. Add this if you want the bot to translate to another language that isn't the primary language. Useful for (semi)-bilingual chat. For example: Assume there's a Japanese VTuber where they have both Japanese and Western fans. The VTuber only understands Japanese. If only `PRIMARY_LANG` is set, non-Japanese messages (for example English) will be translated to Japanese. So the VTuber and Japanese fans can understand it. However, if someone types in Japanese, only the VTuber and other Japanese fans can understand it, leaving the western fans a left out a bit. In this case, `SECONDARY_LANG` can be set to `en` for English. What now happens is that the messages Japanese will be translated to English, so now even the western fans can understand what the other fans are saying.\
+> **SECONDARY\_ LANG** optional entry. Add this if you want the bot to translate to another language that isn't the primary language. Useful for (semi)-bilingual chat. For example: Assume there's a Japanese VTuber where they have both Japanese and Western fans. The VTuber only understands Japanese. If only `PRIMARY_LANG` is set, non-Japanese messages (for example English) will be translated to Japanese. So the VTuber and Japanese fans can understand it. However, if someone types in Japanese, only the VTuber and other Japanese fans can understand it, leaving the western fans a left out a bit. In this case, `SECONDARY_LANG` can be set to `en` for English. What now happens is that the messages Japanese will be translated to English, so now even the western fans can understand what the other fans are saying.
+
 > **Per-Channel Languages**: For multi-channel setups, you can set channel-specific languages using `PRIMARY_LANG_{CHANNEL}` and `SECONDARY_LANG_{CHANNEL}`, where `{CHANNEL}` is the uppercase channel name (e.g., `PRIMARY_LANG_MYCHANNEL=en`). If not set for a channel, it falls back to the global `PRIMARY_LANG` and `SECONDARY_LANG`.
 
 Obviously, machine translation isn't perfect and probably won't be for a very long time due to how languages work. However, that doesn't mean it's useless. It could be very useful in some streams, depending on what the chat is like.
@@ -40,11 +41,11 @@ So the .env should look something like this:
 ```.env
 BOT_USERNAME=faizal01
 CHANNEL_NAME=faizal101
-TWITCH_OAUTH=oauth:yourouathkeydontshare
+TWITCH_OAUTH=oauth:yourouathkeydontshare # Not required if using TWITCH_OAUTH_FLOW
 TWITCH_OAUTH_FLOW=true
-TWITCH_CLIENT_ID=TwitchClientID
-TWITCH_CLIENT_SECRET=TwitchClientSecret
-ENCRYPTION_KEY=your64characterhexencryptionkey
+TWITCH_CLIENT_ID=TwitchClientID # Only if TWITCH_OAUTH_FLOW is set to true
+TWITCH_CLIENT_SECRET=TwitchClientSecret # Only if TWITCH_OAUTH_FLOW is set to true
+ENCRYPTION_KEY=your64characterhexencryptionkey # Optional, only used when TWITCH_OAUTH_FLOW is set to true
 AZURE_SUB_KEY=yoursubkeydontshare
 PRIMARY_LANG=en
 ```
