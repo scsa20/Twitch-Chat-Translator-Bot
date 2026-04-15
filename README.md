@@ -65,23 +65,18 @@ docker run -e BOT_USERNAME=your_bot \
            scsa20/twitch-chat-translator-bot:test
 ```
 
-## OAuth HTTPS Setup
+## OAuth Setup
 
-Twitch requires HTTPS redirect URIs when registering an application. For local development, you have two options:
+### Option 1: Local Only (Not meant for perma deployment)
 
-### Option 1: Use ngrok (Recommended for local testing)
-
-1. Install [ngrok](https://ngrok.com/)
-2. Run: `ngrok http 3000`
-3. Copy the HTTPS URL (e.g., `https://abc123.ngrok.io`)
-4. In `.env`, set:
-   ```
-   TWITCH_OAUTH_REDIRECT_URI=https://abc123.ngrok.io/auth/callback
-   ```
-5. Register this URI in your Twitch app settings
+1. Log into [Twitch Developer Console](https://dev.twitch.tv/console)
+2. Click on "Register Your Application"
+3. For the Name, set it to whatever you like.
+4. For the OAuth Redirect URLs, add: http://localhost:3000/auth/callback
+5. Set the Category as Chat Bot.
 6. Run the bot with `yarn start`
 
-### Option 2: Use Self-Signed Certificates (Local only)
+### Option 2: Use Self-Signed Certificates (Local only) if wanting HTTPS
 
 Generate a self-signed certificate:
 ```bash
@@ -113,7 +108,7 @@ If running the bot behind a reverse proxy like Cloudflare, the bot automatically
 4. Register the same URI in your Twitch app settings
 
 **Example: Cloudflare proxy to internal server**
-- Internal server: `http://192.168.2.42:3009` (port mapped to 3000)
+- Internal server: `http://192.168.2.42:3000`
 - Cloudflare domain: `https://twitchtest.sc20.me`
 - Redirect URI: `https://twitchtest.sc20.me/auth/callback`
 
