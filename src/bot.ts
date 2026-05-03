@@ -4,17 +4,17 @@ import axios from 'axios';
 import http from 'http';
 import https from 'https';
 import fs from 'fs';
-import { ensureConfigDir } from './config';
-import { normalizeUsername } from './utils';
-import { loadIgnoreListFromFile, parseEnvIgnoreUsers, saveIgnoreList } from './ignoreList';
-import { detectLanguage, translateMessage } from './translator';
+import { ensureConfigDir } from './config.js';
+import { normalizeUsername } from './utils.js';
+import { loadIgnoreListFromFile, parseEnvIgnoreUsers, saveIgnoreList } from './ignoreList.js';
+import { detectLanguage, translateMessage } from './translator.js';
 import {
   loadStoredToken,
   saveToken,
   isTokenExpired,
   refreshToken as refreshStoredToken,
   getAccessToken
-} from './tokenManager';
+} from './tokenManager.js';
 
 dotenv.config();
 

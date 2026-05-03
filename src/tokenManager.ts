@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import crypto from 'crypto';
 import axios from 'axios';
-import { CONFIG_DIR } from './config';
+import { CONFIG_DIR } from './config.js';
 
 const ENCRYPTION_KEY_FILE = join(CONFIG_DIR, 'encryption-key.txt');
 

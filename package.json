@@ -2,10 +2,11 @@
   "name": "twitch-translator-bot",
   "version": "1.2.0",
   "description": "A Twitch chat bot that automatically translates users messages.",
+  "type": "module",
   "scripts": {
     "build": "tsc",
     "start": "node dist/bot.js",
-    "dev": "nodemon src/bot.ts",
+    "dev": "nodemon --esm src/bot.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "main": "dist/bot.js",
@@ -32,6 +33,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.5",
     "nodemon": "^3.0.1",
+    "prettier": "^3.0.0",
     "ts-node": "^10.9.1"
   }
 }

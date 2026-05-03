@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs';
-import { IGNORE_USERS_PATH, CONFIG_DIR, ensureConfigDir } from './config';
-import { normalizeUsername } from './utils';
+import { IGNORE_USERS_PATH, CONFIG_DIR, ensureConfigDir } from './config.js';
+import { normalizeUsername } from './utils.js';
 import { join } from 'path';
 
 function getPerChannelIgnorePath(channel: string): string {
