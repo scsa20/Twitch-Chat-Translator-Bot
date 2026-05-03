@@ -270,6 +270,21 @@ async function onMessageHandler(
   const usernameLower = String(context?.username ?? '').toLowerCase();
   const isPrivileged = isBroadcaster || isMod;
 
+  // Correct common command typos for !ignore
+  const lowerMsg = message.toLowerCase();
+  if (lowerMsg.startsWith('!ignore')) {
+    if (lowerMsg === '!ignoreadd' || lowerMsg.startsWith('!ignoreadd ')) {
+      message = '!ignore add' + message.slice('!ignoreadd'.length);
+      client.say(target, '/me Corrected "!ignoreadd" to "!ignore add".');
+    } else if (lowerMsg === '!ignoreremove' || lowerMsg.startsWith('!ignoreremove ')) {
+      message = '!ignore remove' + message.slice('!ignoreremove'.length);
+      client.say(target, '/me Corrected "!ignoreremove" to "!ignore remove".');
+    } else if (lowerMsg === '!ignorelist') {
+      message = '!ignore list';
+      client.say(target, '/me Corrected "!ignorelist" to "!ignore list".');
+    }
+  }
+
   if (message.toLowerCase().startsWith('!ignore')) {
     if (!isPrivileged) return;
 

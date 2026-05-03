@@ -2,12 +2,13 @@
   "name": "twitch-translator-bot",
   "version": "1.2.0",
   "description": "A Twitch chat bot that automatically translates users messages.",
-  "main": "src/bot.js",
   "scripts": {
-    "start": "npm_config_loglevel=error npx tsc && node src/bot.js",
+    "build": "tsc",
+    "start": "node dist/bot.js",
     "dev": "nodemon src/bot.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "main": "dist/bot.js",
   "keywords": [
     "twitch",
     "bot",

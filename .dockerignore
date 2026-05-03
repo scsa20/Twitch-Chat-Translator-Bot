@@ -1,3 +1,14 @@
 node_modules
 .env
 config/
+.git/
+.gitignore
+.env.example
+LICENSE
+.npmrc
+.yarnrc
+README.md
+Dockerfile
+.dockerignore
+.eslintrc*
+.prettierrc*
