@@ -5,7 +5,7 @@ import http from 'http';
 import https from 'https';
 import fs from 'fs';
 import { ensureConfigDir } from './config.js';
-import { normalizeUsername } from './utils.js';
+import { isPrivilegedUser, normalizeUsername } from './utils.js';
 import { loadIgnoreListFromFile, parseEnvIgnoreUsers, saveIgnoreList } from './ignoreList.js';
 import { detectLanguage, translateMessage } from './translator.js';
 import {
@@ -266,9 +266,8 @@ async function onMessageHandler(
   let message = msg.trim();
 
   const isBroadcaster = Boolean(context?.badges?.broadcaster);
-  const isMod = Boolean(context?.badges?.moderator);
   const usernameLower = String(context?.username ?? '').toLowerCase();
-  const isPrivileged = isBroadcaster || isMod;
+  const isPrivileged = isPrivilegedUser(context);
 
   // Correct common command typos for !ignore
   const lowerMsg = message.toLowerCase();
