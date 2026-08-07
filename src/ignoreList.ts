@@ -1,18 +1,24 @@
 import { existsSync, readFileSync, writeFileSync } from 'fs';
-import { IGNORE_USERS_PATH, ensureConfigDir } from './config';
-import { normalizeUsername } from './utils';
+import { IGNORE_USERS_PATH, CONFIG_DIR, ensureConfigDir } from './config.js';
+import { normalizeUsername } from './utils.js';
+import { join } from 'path';
 
-export function loadIgnoreListFromFile(): string[] {
+function getPerChannelIgnorePath(channel: string): string {
+  return join(CONFIG_DIR, `ignore-users-${channel.toLowerCase()}.json`);
+}
+
+export function loadIgnoreListFromFile(channel?: string): string[] {
   try {
-    if (!existsSync(IGNORE_USERS_PATH)) return [];
-    const raw = readFileSync(IGNORE_USERS_PATH, 'utf-8');
+    const ignorePath = channel ? getPerChannelIgnorePath(channel) : IGNORE_USERS_PATH;
+    if (!existsSync(ignorePath)) return [];
+    const raw = readFileSync(ignorePath, 'utf-8');
     const data = JSON.parse(raw);
     if (!Array.isArray(data)) return [];
     return data
       .map((x: unknown) => (typeof x === 'string' ? normalizeUsername(x) : null))
       .filter((x): x is string => !!x);
   } catch (err) {
-    console.warn('Failed to load ignore-users.json:', err);
+    console.warn('Failed to load ignore list:', err);
     return [];
   }
 }
@@ -26,12 +32,14 @@ export function parseEnvIgnoreUsers(): string[] {
     .filter((x): x is string => !!x);
 }
 
-export function saveIgnoreList(set: Set<string>) {
+export function saveIgnoreList(set: Set<string>, channel?: string) {
   try {
     ensureConfigDir();
+    const ignorePath = channel ? getPerChannelIgnorePath(channel) : IGNORE_USERS_PATH;
     const arr = Array.from(set.values()).sort();
-    writeFileSync(IGNORE_USERS_PATH, JSON.stringify(arr, null, 2), 'utf-8');
+    writeFileSync(ignorePath, JSON.stringify(arr, null, 2), 'utf-8');
   } catch (err) {
-    console.warn('Failed to save ignore-users.json:', err);
+    console.warn('Failed to save ignore list:', err);
   }
 }
+

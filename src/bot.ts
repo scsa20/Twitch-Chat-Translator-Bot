@@ -1,148 +1,156 @@
 import tmi from 'tmi.js';
 import dotenv from 'dotenv';
-import { ensureConfigDir } from './config';
-import { normalizeUsername } from './utils';
-import { loadIgnoreListFromFile, parseEnvIgnoreUsers, saveIgnoreList } from './ignoreList';
-import { detectLanguage, translateMessage } from './translator';
+import { ensureConfigDir } from './config.js';
+import { initializeIgnoreSets, handleIgnoreCommand, isIgnoreMessage, normalizeCommandTyping } from './commandHandler.js';
+import { initializeLanguageConfigs, removeEmotes, processMessage } from './messageProcessor.js';
+import { getOAuthTokenViaFlow } from './authFlow.js';
+import { requireEnv } from './env.js';
+import {
+  loadStoredToken,
+  saveToken,
+  isTokenExpired,
+  refreshToken as refreshStoredToken,
+  getAccessToken
+} from './tokenManager.js';
 
 dotenv.config();
 
-function requireEnv(key: string): string {
-  const value = process.env[key];
-  if (!value) {
-    throw new Error(`Required environment variable ${key} is not set`);
+ensureConfigDir();
+
+const botUsername = requireEnv('BOT_USERNAME');
+const channelInput = process.env.CHANNEL_NAME || botUsername;
+const channels = channelInput
+  .split(/[,\s]+/)
+  .map((c) => c.trim().toLowerCase())
+  .filter((c) => c.length > 0);
+
+const perChannelIgnoreSets = initializeIgnoreSets(channels);
+const perChannelLanguages = initializeLanguageConfigs(channels);
+
+let client: tmi.Client;
+let tokenRefreshInterval: NodeJS.Timeout | null = null;
+const useOAuthFlow = ['1', 'true', 'yes'].includes((process.env.TWITCH_OAUTH_FLOW || '').toLowerCase());
+const envOAuth = process.env.TWITCH_OAUTH;
+
+async function getOrRefreshToken(): Promise<string> {
+  if (useOAuthFlow) {
+    const clientId = requireEnv('TWITCH_CLIENT_ID');
+    const clientSecret = requireEnv('TWITCH_CLIENT_SECRET');
+
+    const storedToken = loadStoredToken();
+    if (storedToken) {
+      if (!isTokenExpired(storedToken)) {
+        console.log('Using stored OAuth token.');
+        return getAccessToken(storedToken);
+      }
+
+      try {
+        console.log('Stored token expired, refreshing...');
+        const refreshed = await refreshStoredToken(clientId, clientSecret, storedToken.refreshToken);
+        return getAccessToken(refreshed);
+      } catch (err) {
+        console.warn('Failed to refresh token, requesting new authorization...', err);
+      }
+    }
+
+    const tokenData = await getOAuthTokenViaFlow();
+    saveToken(tokenData.accessToken, tokenData.refreshToken, tokenData.expiresIn);
+    return getAccessToken({
+      accessToken: tokenData.accessToken,
+      refreshToken: tokenData.refreshToken,
+      expiresAt: 0
+    });
   }
-  return value;
+
+  if (!envOAuth) {
+    throw new Error('Twitch auth is required. Set TWITCH_OAUTH or enable TWITCH_OAUTH_FLOW=true');
+  }
+  return envOAuth.startsWith('oauth:') ? envOAuth : `oauth:${envOAuth}`;
 }
 
-ensureConfigDir();
-const initialIgnore = new Set<string>(loadIgnoreListFromFile());
-for (const u of parseEnvIgnoreUsers()) initialIgnore.add(u);
-let ignoreSet = initialIgnore;
+function setupAutoTokenRefresh(): void {
+  if (!useOAuthFlow) return;
 
-const opts = {
-  identity: {
-    username: requireEnv('BOT_USERNAME'),
-    password: requireEnv('TWITCH_OAUTH')
-  },
-  channels: [requireEnv('CHANNEL_NAME')]
-};
+  tokenRefreshInterval = setInterval(async () => {
+    try {
+      const storedToken = loadStoredToken();
+      if (!storedToken) return;
 
-const primaryLang = requireEnv('PRIMARY_LANG');
-const secondaryLang = process.env.SECONDARY_LANG;
-const client = new tmi.client(opts);
+      if (isTokenExpired(storedToken)) {
+        const clientId = requireEnv('TWITCH_CLIENT_ID');
+        const clientSecret = requireEnv('TWITCH_CLIENT_SECRET');
+        console.log('Auto-refreshing expired token...');
+        await refreshStoredToken(clientId, clientSecret, storedToken.refreshToken);
+        console.log('Token auto-refreshed successfully.');
+      }
+    } catch (err) {
+      console.error('Auto-refresh failed:', err);
+    }
+  }, 30 * 60 * 1000);
+}
 
-client.on('connected', onConnectedHandler);
-client.on('message', onMessageHandler);
-client.connect();
+async function createClientAndConnect() {
+  const formattedToken = await getOrRefreshToken();
 
-// Called every time the bot connects to Twitch chat
+  client = new tmi.Client({
+    identity: {
+      username: botUsername,
+      password: formattedToken
+    },
+    channels
+  });
+
+  client.on('connected', onConnectedHandler);
+  client.on('message', onMessageHandler);
+
+  await client.connect();
+  console.log(`Bot connected as '${botUsername}' to ${channels.length} channel(s): ${channels.join(', ')}`);
+
+  setupAutoTokenRefresh();
+
+  return client;
+}
+
 function onConnectedHandler(addr: string, port: number) {
   console.log(`* Connected to ${addr}:${port}`);
 }
 
-// Called every time a message comes in
-async function onMessageHandler(
-  target: string,
-  context: any,
-  msg: string,
-  self: boolean
-) {
+async function onMessageHandler(target: string, context: any, msg: string, self: boolean) {
   if (self) return;
 
-  let message = msg.trim();
+  const channelName = target.toLowerCase().startsWith('#') ? target.slice(1) : target.toLowerCase();
+  const ignoreSet = perChannelIgnoreSets.get(channelName) || new Set<string>();
+  const langConfig = perChannelLanguages.get(channelName)!;
 
+  let message = normalizeCommandTyping(msg.trim());
   const isBroadcaster = Boolean(context?.badges?.broadcaster);
-  const isMod = Boolean(context?.badges?.moderator);
   const usernameLower = String(context?.username ?? '').toLowerCase();
-  const isPrivileged = isBroadcaster || isMod;
+  const isPrivileged = Boolean(context?.badges?.broadcaster || context?.mod || context?.['user-type'] === 'mod');
 
-  if (message.toLowerCase().startsWith('!ignore')) {
+  if (isIgnoreMessage(message)) {
     if (!isPrivileged) return;
-
-    const parts = message.trim().split(/\s+/);
-    const sub = (parts[1] || '').toLowerCase();
-
-    if (sub === 'add' || sub === '+') {
-      const raw = parts[2];
-      if (!raw) {
-        client.say(target, '/me Usage: !ignore add <username>');
-        return;
-      }
-      const normalized = normalizeUsername(raw);
-      if (!normalized) {
-        client.say(target, '/me Invalid username.');
-        return;
-      }
-      if (ignoreSet.has(normalized)) {
-        client.say(target, `/me ${normalized} is already in ignore list.`);
-        return;
-      }
-      ignoreSet.add(normalized);
-      saveIgnoreList(ignoreSet);
-      client.say(target, `/me Added ${normalized} to ignore list.`);
-      return;
-    } else if (sub === 'remove' || sub === '-') {
-      const raw = parts[2];
-      if (!raw) {
-        client.say(target, '/me Usage: !ignore remove <username>');
-        return;
-      }
-      const normalized = normalizeUsername(raw);
-      if (!normalized) {
-        client.say(target, '/me Invalid username.');
-        return;
-      }
-      if (!ignoreSet.has(normalized)) {
-        client.say(target, `/me ${normalized} is not in ignore list.`);
-        return;
-      }
-      ignoreSet.delete(normalized);
-      saveIgnoreList(ignoreSet);
-      client.say(target, `/me Removed ${normalized} from ignore list.`);
-      return;
-    } else if (sub === 'list') {
-      const list = Array.from(ignoreSet.values()).sort();
-      const preview = list.slice(0, 20).join(', ') || '(empty)';
-      const suffix = list.length > 20 ? ` ... and ${list.length - 20} more` : '';
-      client.say(target, `/me Ignore list: ${preview}${suffix}`);
-      return;
-    }
-
-    client.say(target, '/me Commands: !ignore add <username> | !ignore remove <username> | !ignore list');
+    handleIgnoreCommand(client, target, channelName, message, ignoreSet);
     return;
   }
 
-  if (context?.emotes) {
-    const emotes = Object.values<string>(context.emotes)
-      .map(([positions]) => {
-        const [start, end] = positions.split('-').map(Number);
-        return message.substring(start, end + 1);
-      })
-      .filter(Boolean);
-
-    emotes.forEach((x) => {
-      message = message.replace(new RegExp(x, 'g'), '');
-    });
-  }
+  message = removeEmotes(message, context).trim();
 
   if (ignoreSet.has(usernameLower)) return;
+  if (isBroadcaster || message.length <= 7) return;
 
-  if (isBroadcaster || isMod || message.length <= 7) return;
-
-  const detectedLang = await detectLanguage(message);
-
-  if (secondaryLang) {
-    if (detectedLang === secondaryLang) {
-      await translateMessage(client, message, target, primaryLang);
-    } else if (detectedLang === primaryLang) {
-      await translateMessage(client, message, target, secondaryLang);
-    } else {
-      await translateMessage(client, message, target, primaryLang);
-    }
-  } else if (detectedLang !== primaryLang) {
-    await translateMessage(client, message, target, primaryLang);
-  }
+  await processMessage(client, target, message, channelName, usernameLower, isBroadcaster, ignoreSet, langConfig, context);
 }
 
+createClientAndConnect().catch((err) => {
+  console.error('Failed to start bot:', err.message || err);
+  process.exit(1);
+});
+
+process.on('SIGINT', () => {
+  console.log('\nShutting down...');
+  if (tokenRefreshInterval) {
+    clearInterval(tokenRefreshInterval);
+  }
+  process.exit(0);
+});
 

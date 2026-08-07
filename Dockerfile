@@ -1,14 +1,31 @@
+FROM node:24-alpine AS builder
+
+WORKDIR /app
+
+COPY package.json yarn.lock ./
+RUN yarn install --frozen-lockfile && yarn cache clean
+
+COPY . .
+RUN yarn build
+
+# Production stage
 FROM node:24-alpine
 
-# Set default path for ignore-users storage in container
+ENV NODE_ENV=production
 ENV IGNORE_USERS_PATH=/data/ignore-users.json
 ENV IGNORE_USERS_DIR=/data
 
 WORKDIR /app
-COPY . .
-RUN yarn install
 
-# Persist ignore list outside of container filesystem
+COPY package.json yarn.lock ./
+RUN yarn install --frozen-lockfile --production && yarn cache clean
+
+COPY --from=builder /app/dist ./dist
+
+RUN mkdir -p /data && chown -R node:node /app /data
+
+USER node
+
 VOLUME ["/data"]
 
-CMD yarn start
+CMD ["yarn", "start"]

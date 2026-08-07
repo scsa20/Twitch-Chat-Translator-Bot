@@ -1,13 +1,14 @@
 {
   "name": "twitch-translator-bot",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "A Twitch chat bot that automatically translates users messages.",
-  "main": "src/bot.js",
+  "type": "module",
   "scripts": {
-    "start": "npx tsc && node src/bot.js",
-    "dev": "nodemon src/bot.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc",
+    "start": "node dist/bot.js",
+    "dev": "nodemon --esm src/bot.ts"
   },
+  "main": "dist/bot.js",
   "keywords": [
     "twitch",
     "bot",
@@ -17,16 +18,20 @@
   "author": "Kuu",
   "license": "MIT",
   "dependencies": {
-    "axios": "^1.14.0",
     "dotenv": "^8.2.0",
     "eslint": "^8.49.0",
     "tmi.js": "^1.8.4",
     "typescript": "^5.3.3"
   },
   "devDependencies": {
-    "@types/node": "^20.10.6",
+    "@types/node": "^25.5.0",
     "@types/tmi.js": "^1.8.4",
+    "@typescript-eslint/eslint-plugin": "^8.57.2",
+    "@typescript-eslint/parser": "^8.57.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
     "nodemon": "^3.0.1",
+    "prettier": "^3.0.0",
     "ts-node": "^10.9.1"
   }
 }
