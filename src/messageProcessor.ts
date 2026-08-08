@@ -39,7 +39,7 @@ const COMMON_CHAT_EMOTES = new Set([
 ]);
 
 const URL_REGEX = /(?:https?:\/\/|www\.)\S+|\b\S+\.(?:com|net|io|gg|tv|me|xyz|org|dev|app|co)(?:\/\S*)?/gi;
-const COMMON_EMOTE_REGEX = new RegExp(`\b(${Array.from(COMMON_CHAT_EMOTES).join('|')})\b`, 'gi');
+const COMMON_EMOTE_REGEX = new RegExp(`\\b(${Array.from(COMMON_CHAT_EMOTES).join('|')})\\b`, 'gi');
 
 export function initializeLanguageConfigs(channels: string[]): Map<string, ChannelLanguageConfig> {
   const globalPrimary = requireEnv('PRIMARY_LANG');
@@ -82,7 +82,16 @@ function stripCommonEmoteTokens(message: string): string {
   return message.replace(COMMON_EMOTE_REGEX, '');
 }
 
-export function removeEmotes(message: string, context: any): string {
+function stripConfiguredEmoteTokens(message: string, channelEmotes?: ReadonlySet<string>): string {
+  if (!channelEmotes || channelEmotes.size === 0) return message;
+
+  return message
+    .split(/\s+/)
+    .filter((token) => token.length > 0 && !channelEmotes.has(token))
+    .join(' ');
+}
+
+export function removeEmotes(message: string, context: any, channelEmotes?: ReadonlySet<string>): string {
   let cleaned = stripUrls(message);
 
   if (context?.emotes) {
@@ -105,6 +114,7 @@ export function removeEmotes(message: string, context: any): string {
     cleaned = emotes.reduce((text, emote) => text.replace(new RegExp(escapeRegExp(emote), 'g'), ''), cleaned);
   }
 
+  cleaned = stripConfiguredEmoteTokens(cleaned, channelEmotes);
   cleaned = stripCommonEmoteTokens(cleaned);
   return cleaned.replace(/\s+/g, ' ').trim();
 }

@@ -4,9 +4,10 @@ import { ensureConfigDir } from './config.js';
 import { migrateConfigIfNeeded } from './migrator.js';
 import { initializeIgnoreSets, handleIgnoreCommand, isIgnoreMessage, normalizeCommandTyping } from './commandHandler.js';
 import { initializeLanguageConfigs, removeEmotes, processMessage } from './messageProcessor.js';
-import { setPrimary, setSecondary, setTranslateEnabled } from './channelConfig.js';
+import { setPrimary, setSecondary, setTranslateEnabled, type ChannelConfig } from './channelConfig.js';
 import { getOAuthTokenViaFlow } from './authFlow.js';
 import { requireEnv } from './env.js';
+import { EmoteService } from './emoteService.js';
 import {
   loadStoredToken,
   saveToken,
@@ -33,11 +34,12 @@ const BUILT_IN_IGNORED_BOT_USERS = new Set([
 ]);
 
 let perChannelIgnoreSets: Map<string, any> = new Map();
-let perChannelLanguages: Map<string, any> = new Map();
+let perChannelLanguages: Map<string, ChannelConfig> = new Map();
 let botUsername: string;
 let channels: string[] = [];
 let client: tmi.Client;
 let tokenRefreshInterval: NodeJS.Timeout | null = null;
+let emoteService: EmoteService | null = null;
 
 async function main() {
   ensureConfigDir();
@@ -123,6 +125,23 @@ function setupAutoTokenRefresh(): void {
 
 async function createClientAndConnect() {
   const formattedToken = await getOrRefreshToken();
+
+  const twitchClientId = process.env.TWITCH_CLIENT_ID;
+  if (twitchClientId) {
+    emoteService = new EmoteService({
+      clientId: twitchClientId,
+      accessToken: formattedToken
+    });
+
+    await emoteService.start(
+      channels.map((channel) => ({
+        channel,
+        config: perChannelLanguages.get(channel)?.emoteProviders
+      }))
+    );
+  } else {
+    console.warn('TWITCH_CLIENT_ID is not set; external emote providers are disabled.');
+  }
 
   client = new tmi.Client({
     identity: {
@@ -226,7 +245,7 @@ async function onMessageHandler(target: string, context: any, msg: string, self:
     }
   }
 
-  message = removeEmotes(message, context).trim();
+  message = removeEmotes(message, context, emoteService?.getChannelEmotes(channelName)).trim();
 
   if (ignoreSet.has(usernameLower) || BUILT_IN_IGNORED_BOT_USERS.has(usernameLower)) return;
   if (isBroadcaster || message.length <= 7) return;
@@ -246,6 +265,7 @@ process.on('SIGINT', () => {
   if (tokenRefreshInterval) {
     clearInterval(tokenRefreshInterval);
   }
+  emoteService?.stop();
   process.exit(0);
 });
 

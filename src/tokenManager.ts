@@ -69,6 +69,8 @@ interface StoredToken {
   expiresAt: number;
 }
 
+export type { StoredToken };
+
 const TOKEN_FILE = join(CONFIG_DIR, 'oauth-token.json');
 
 export function loadStoredToken(): StoredToken | null {
@@ -175,4 +177,14 @@ export function getAccessToken(token: StoredToken): string {
   return token.accessToken.startsWith('oauth:')
     ? token.accessToken
     : `oauth:${token.accessToken}`;
+}
+
+export function getApiAccessToken(token: StoredToken): string {
+  return toBearerAccessToken(token.accessToken);
+}
+
+export function toBearerAccessToken(accessToken: string): string {
+  return accessToken.startsWith('oauth:')
+    ? accessToken.slice('oauth:'.length)
+    : accessToken;
 }
