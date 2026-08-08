@@ -8,7 +8,7 @@ A Twitch chat bot that automatically translates users messages to the chosen lan
 
 - First clone the repo and then `cd` to the folder.
 - Install all the dependicies and packages `yarn install`.
-- Create an .env by using ~~the only~~ your favourite text editor `nano .env`
+- Rename `.env.sample` to `.env` and open it to edit it.
 - List of variables:
 
 > **BOT_USERNAME** is the username of the Twitch account.\
