@@ -1,8 +1,15 @@
 import type tmi from 'tmi.js';
 import { normalizeUsername } from './utils.js';
 import { loadIgnoreListFromFile, parseEnvIgnoreUsers, saveIgnoreList } from './ignoreList.js';
+import type { ChannelConfig } from './channelConfig.js';
+import { setPrimary, setSecondary, setTranslateEnabled } from './channelConfig.js';
 
 export type IgnoreSet = Set<string>;
+
+const GET_LANGS_ALIASES = new Set(['!getlangs', '!getlang', '!langs', '!languages']);
+const SET_PRIMARY_ALIASES = new Set(['!setprimlang', '!setprim', '!setprimary']);
+const SET_SECONDARY_ALIASES = new Set(['!setseclang', '!setsec', '!setsecondary']);
+const TRANSLATE_ALIASES = new Set(['!translate', '!translations']);
 
 export function initializeIgnoreSets(channels: string[]): Map<string, IgnoreSet> {
   const perChannelIgnoreSets = new Map<string, IgnoreSet>();
@@ -80,6 +87,99 @@ export function handleIgnoreCommand(
 
 export function isIgnoreMessage(message: string): boolean {
   return message.toLowerCase().startsWith('!ignore');
+}
+
+export function isGetLangsCommand(message: string): boolean {
+  const cmd = (message.trim().split(/\s+/)[0] || '').toLowerCase();
+  return GET_LANGS_ALIASES.has(cmd);
+}
+
+export function isLanguageCommand(message: string): boolean {
+  const cmd = (message.trim().split(/\s+/)[0] || '').toLowerCase();
+  return SET_PRIMARY_ALIASES.has(cmd)
+    || SET_SECONDARY_ALIASES.has(cmd)
+    || GET_LANGS_ALIASES.has(cmd)
+    || TRANSLATE_ALIASES.has(cmd);
+}
+
+export function handleLanguageCommand(
+  client: tmi.Client,
+  target: string,
+  channelName: string,
+  message: string,
+  perChannelLanguages: Map<string, ChannelConfig>,
+  langConfig: ChannelConfig | undefined
+): boolean {
+  const parts = message.trim().split(/\s+/);
+  const cmd = (parts[0] || '').toLowerCase();
+  const arg = parts[1];
+
+  if (SET_PRIMARY_ALIASES.has(cmd)) {
+    if (!arg) {
+      client.say(target, '/me Usage: !setprimlang <lang>');
+      return true;
+    }
+    setPrimary(channelName, arg);
+    const cfg = perChannelLanguages.get(channelName) || { primary: arg };
+    cfg.primary = arg;
+    perChannelLanguages.set(channelName, cfg);
+    client.say(target, `/me Primary language set to ${arg}`);
+    return true;
+  }
+
+  if (SET_SECONDARY_ALIASES.has(cmd)) {
+    if (!arg) {
+      client.say(target, '/me Usage: !setseclang <lang|off>');
+      return true;
+    }
+    if (arg.toLowerCase() === 'off') {
+      setSecondary(channelName, null);
+      const cfg = perChannelLanguages.get(channelName) || { primary: process.env.PRIMARY_LANG || 'en' };
+      delete cfg.secondary;
+      perChannelLanguages.set(channelName, cfg);
+      client.say(target, '/me Secondary language disabled');
+      return true;
+    }
+    setSecondary(channelName, arg);
+    const cfg = perChannelLanguages.get(channelName) || { primary: process.env.PRIMARY_LANG || 'en' };
+    cfg.secondary = arg;
+    perChannelLanguages.set(channelName, cfg);
+    client.say(target, `/me Secondary language set to ${arg}`);
+    return true;
+  }
+
+  if (GET_LANGS_ALIASES.has(cmd)) {
+    return handleGetLangsCommand(client, target, channelName, perChannelLanguages.get(channelName) || langConfig);
+  }
+
+  if (TRANSLATE_ALIASES.has(cmd)) {
+    if (!arg) {
+      client.say(target, '/me Usage: !translate <on|off>');
+      return true;
+    }
+    const enabled = arg.toLowerCase() !== 'off' && arg.toLowerCase() !== 'false';
+    setTranslateEnabled(channelName, enabled);
+    const cfg = perChannelLanguages.get(channelName) || { primary: process.env.PRIMARY_LANG || 'en' };
+    cfg.translateEnabled = enabled;
+    perChannelLanguages.set(channelName, cfg);
+    client.say(target, `/me Translations ${enabled ? 'enabled' : 'disabled'}`);
+    return true;
+  }
+
+  return false;
+}
+
+export function handleGetLangsCommand(
+  client: tmi.Client,
+  target: string,
+  channelName: string,
+  langConfig: ChannelConfig | undefined
+): boolean {
+  const primary = langConfig?.primary || process.env.PRIMARY_LANG || 'en';
+  const secondary = langConfig?.secondary || 'off';
+  const translateEnabled = langConfig?.translateEnabled !== false ? 'on' : 'off';
+  client.say(target, `/me Languages for ${channelName}: primary=${primary}, secondary=${secondary}, translate=${translateEnabled}`);
+  return true;
 }
 
 export function normalizeCommandTyping(message: string): string {

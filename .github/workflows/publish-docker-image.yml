@@ -2,8 +2,8 @@ name: Publish Docker image
 
 on:
   push:
-    branches-ignore:
-      - main
+    branches:
+      - '**'
 
 permissions:
   contents: read
@@ -17,11 +17,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Set up Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
       - name: Read package version
         id: package_version
         run: |
           version=$(node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); process.stdout.write(pkg.version)")
           echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Determine image tag suffix
+        id: image_tag
+        run: |
+          if [ "${GITHUB_REF_NAME}" = "main" ]; then
+            echo "suffix=latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "suffix=test" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -46,7 +60,7 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: |
-            ghcr.io/scsa20/twitch-chat-translator-bot:test
+            ghcr.io/scsa20/twitch-chat-translator-bot:${{ steps.image_tag.outputs.suffix }}
             ghcr.io/scsa20/twitch-chat-translator-bot:${{ steps.package_version.outputs.version }}
-            scsa20/twitch-chat-translator-bot:test
+            scsa20/twitch-chat-translator-bot:${{ steps.image_tag.outputs.suffix }}
             scsa20/twitch-chat-translator-bot:${{ steps.package_version.outputs.version }}

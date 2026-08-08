@@ -2,9 +2,9 @@ import tmi from 'tmi.js';
 import dotenv from 'dotenv';
 import { ensureConfigDir } from './config.js';
 import { migrateConfigIfNeeded } from './migrator.js';
-import { initializeIgnoreSets, handleIgnoreCommand, isIgnoreMessage, normalizeCommandTyping } from './commandHandler.js';
+import { initializeIgnoreSets, handleIgnoreCommand, handleLanguageCommand, isIgnoreMessage, isLanguageCommand, normalizeCommandTyping } from './commandHandler.js';
 import { initializeLanguageConfigs, removeEmotes, processMessage } from './messageProcessor.js';
-import { setPrimary, setSecondary, setTranslateEnabled, type ChannelConfig } from './channelConfig.js';
+import { type ChannelConfig } from './channelConfig.js';
 import { getOAuthTokenViaFlow } from './authFlow.js';
 import { requireEnv } from './env.js';
 import { EmoteService } from './emoteService.js';
@@ -184,65 +184,9 @@ async function onMessageHandler(target: string, context: any, msg: string, self:
     return;
   }
 
-  // Language / translate commands handled by broadcaster & mods
-  const parts = message.split(/\s+/);
-  const cmd = (parts[0] || '').toLowerCase();
-  const arg = parts[1];
-
-  const setPrimAliases = new Set(['!setprimlang', '!setprim', '!setprimary']);
-  const setSecAliases = new Set(['!setseclang', '!setsec', '!setsecondary']);
-  const translateAliases = new Set(['!translate', '!translations']);
-
-  if (setPrimAliases.has(cmd) || setSecAliases.has(cmd) || translateAliases.has(cmd)) {
+  if (isLanguageCommand(message)) {
     if (!isPrivileged) return;
-
-    if (setPrimAliases.has(cmd)) {
-      if (!arg) {
-        client.say(target, '/me Usage: !setprimlang <lang>');
-        return;
-      }
-      setPrimary(channelName, arg);
-      const cfg = perChannelLanguages.get(channelName) || { primary: arg };
-      cfg.primary = arg;
-      perChannelLanguages.set(channelName, cfg);
-      client.say(target, `/me Primary language set to ${arg}`);
-      return;
-    }
-
-    if (setSecAliases.has(cmd)) {
-      if (!arg) {
-        client.say(target, '/me Usage: !setseclang <lang|off>');
-        return;
-      }
-      if (arg.toLowerCase() === 'off') {
-        setSecondary(channelName, null);
-        const cfg = perChannelLanguages.get(channelName) || { primary: process.env.PRIMARY_LANG || 'en' };
-        delete cfg.secondary;
-        perChannelLanguages.set(channelName, cfg);
-        client.say(target, '/me Secondary language disabled');
-        return;
-      }
-      setSecondary(channelName, arg);
-      const cfg2 = perChannelLanguages.get(channelName) || { primary: process.env.PRIMARY_LANG || 'en' };
-      cfg2.secondary = arg;
-      perChannelLanguages.set(channelName, cfg2);
-      client.say(target, `/me Secondary language set to ${arg}`);
-      return;
-    }
-
-    if (translateAliases.has(cmd)) {
-      if (!arg) {
-        client.say(target, '/me Usage: !translate <on|off>');
-        return;
-      }
-      const enabled = arg.toLowerCase() !== 'off' && arg.toLowerCase() !== 'false';
-      setTranslateEnabled(channelName, enabled);
-      const cfg3 = perChannelLanguages.get(channelName) || { primary: process.env.PRIMARY_LANG || 'en' };
-      cfg3.translateEnabled = enabled;
-      perChannelLanguages.set(channelName, cfg3);
-      client.say(target, `/me Translations ${enabled ? 'enabled' : 'disabled'}`);
-      return;
-    }
+    if (handleLanguageCommand(client, target, channelName, message, perChannelLanguages, langConfig)) return;
   }
 
   message = removeEmotes(message, context, emoteService?.getChannelEmotes(channelName)).trim();

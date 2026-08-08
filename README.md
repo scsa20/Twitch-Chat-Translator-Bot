@@ -158,6 +158,7 @@ New commands (broadcaster & moderators only):
 ```
 !setprimlang <lang>       # Set primary language for this channel (aliases: !setprim, !setprimary)
 !setseclang <lang|off>    # Set secondary language or 'off' to disable (aliases: !setsec, !setsecondary)
+!getlangs                 # Show current language settings for this channel (aliases: !getlang, !langs, !languages)
 !translate <on|off>       # Enable or disable translations for this channel (aliases: !translations)
 ```
 
