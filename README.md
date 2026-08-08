@@ -151,13 +151,7 @@ CHANNEL_NAME=channel1 channel2 channel3
 CHANNEL_NAME=channel1,channel2,channel3
 ```
 
-**Per-Channel Ignore Lists:**
-Each channel maintains its own ignore list stored in the config folder:
-- `config/ignore-users-channel1.json`
-- `config/ignore-users-channel2.json`
-- etc.
-
-When you use `!ignore add username` in a channel, that user is only ignored in that specific channel.
+Ignore lists are stored per-channel inside `config/bot_config.json` (the bot auto-migrates legacy files on first run).
 
 New commands (broadcaster & moderators only):
 

@@ -11,8 +11,18 @@ services:
       - CHANNEL_NAME=${CHANNEL_NAME}
       - PRIMARY_LANG=${PRIMARY_LANG}
       - AZURE_SUB_KEY=${AZURE_SUB_KEY}
-      # Uncomment to use OAuth flow instead of TWITCH_OAUTH
+      - TWITCH_OAUTH=${TWITCH_OAUTH}
+      # Optional / OAuth flow
       # - TWITCH_OAUTH_FLOW=${TWITCH_OAUTH_FLOW}
+      # - TWITCH_CLIENT_ID=${TWITCH_CLIENT_ID}
+      # - TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
+      # - TWITCH_OAUTH_REDIRECT_URI=${TWITCH_OAUTH_REDIRECT_URI}
+      # - TWITCH_OAUTH_CERT_PATH=${TWITCH_OAUTH_CERT_PATH}
+      # - TWITCH_OAUTH_KEY_PATH=${TWITCH_OAUTH_KEY_PATH}
+      # Optional encryption key (64 hex chars)
+      # - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      # Optional ignore-list settings
+      # - IGNORE_USERS=${IGNORE_USERS}
     volumes:
       - ./config:/app/config
       - ./data:/data
