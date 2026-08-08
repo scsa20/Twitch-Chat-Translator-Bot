@@ -159,6 +159,18 @@ Each channel maintains its own ignore list stored in the config folder:
 
 When you use `!ignore add username` in a channel, that user is only ignored in that specific channel.
 
+New commands (broadcaster & moderators only):
+
+```
+!setprimlang <lang>       # Set primary language for this channel (aliases: !setprim, !setprimary)
+!setseclang <lang|off>    # Set secondary language or 'off' to disable (aliases: !setsec, !setsecondary)
+!translate <on|off>       # Enable or disable translations for this channel (aliases: !translations)
+```
+
+Configuration storage:
+- Per-channel languages and ignore lists are now centralized in `config/bot_config.json`.
+- On first startup the bot will automatically migrate legacy files (`oauth-token.json`, `channels.json`, `ignore-users-*.json`) into `config/bot_config.json` and rename originals with a `.migrated` suffix.
+
 ## Ignore List
 Add/remove users to a per-channel ignore list using the following commands. The ignore list prevents the bot from translating messages from specified users in the current channel.
 

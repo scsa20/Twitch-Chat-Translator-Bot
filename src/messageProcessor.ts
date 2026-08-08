@@ -2,24 +2,12 @@ import type tmi from 'tmi.js';
 import { isPrivilegedUser } from './utils.js';
 import { detectLanguage, translateMessage } from './translator.js';
 import { IgnoreSet } from './commandHandler.js';
-
-export interface ChannelLanguageConfig {
-  primary: string;
-  secondary?: string;
-}
+import { initializeChannelConfigs, ChannelConfig as ChannelLanguageConfig } from './channelConfig.js';
 
 export function initializeLanguageConfigs(channels: string[]): Map<string, ChannelLanguageConfig> {
-  const perChannelLanguages = new Map<string, ChannelLanguageConfig>();
   const globalPrimary = requireEnv('PRIMARY_LANG');
   const globalSecondary = process.env.SECONDARY_LANG;
-
-  for (const channel of channels) {
-    const primary = process.env[`PRIMARY_LANG_${channel.toUpperCase()}`] || globalPrimary;
-    const secondary = process.env[`SECONDARY_LANG_${channel.toUpperCase()}`] || globalSecondary;
-    perChannelLanguages.set(channel, { primary, secondary });
-  }
-
-  return perChannelLanguages;
+  return initializeChannelConfigs(channels, { primary: globalPrimary, secondary: globalSecondary });
 }
 
 function requireEnv(key: string): string {
@@ -74,6 +62,8 @@ export async function processMessage(
   context: any
 ): Promise<void> {
   if (isBroadcaster || message.length <= 7) return;
+
+  if (langConfig.translateEnabled === false) return;
 
   const detectedLang = await detectLanguage(message);
 

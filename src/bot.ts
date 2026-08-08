@@ -1,8 +1,10 @@
 import tmi from 'tmi.js';
 import dotenv from 'dotenv';
 import { ensureConfigDir } from './config.js';
+import { migrateConfigIfNeeded } from './migrator.js';
 import { initializeIgnoreSets, handleIgnoreCommand, isIgnoreMessage, normalizeCommandTyping } from './commandHandler.js';
 import { initializeLanguageConfigs, removeEmotes, processMessage } from './messageProcessor.js';
+import { setPrimary, setSecondary, setTranslateEnabled } from './channelConfig.js';
 import { getOAuthTokenViaFlow } from './authFlow.js';
 import { requireEnv } from './env.js';
 import {
@@ -14,21 +16,35 @@ import {
 } from './tokenManager.js';
 
 dotenv.config();
-
-ensureConfigDir();
-
-const botUsername = requireEnv('BOT_USERNAME');
-const channelInput = process.env.CHANNEL_NAME || botUsername;
-const channels = channelInput
-  .split(/[,\s]+/)
-  .map((c) => c.trim().toLowerCase())
-  .filter((c) => c.length > 0);
-
-const perChannelIgnoreSets = initializeIgnoreSets(channels);
-const perChannelLanguages = initializeLanguageConfigs(channels);
-
+let perChannelIgnoreSets: Map<string, any> = new Map();
+let perChannelLanguages: Map<string, any> = new Map();
+let botUsername: string;
+let channels: string[] = [];
 let client: tmi.Client;
 let tokenRefreshInterval: NodeJS.Timeout | null = null;
+
+async function main() {
+  ensureConfigDir();
+  await migrateConfigIfNeeded();
+
+  botUsername = requireEnv('BOT_USERNAME');
+  const channelInput = process.env.CHANNEL_NAME || botUsername;
+  channels = channelInput
+    .split(/[,\s]+/)
+    .map((c) => c.trim().toLowerCase())
+    .filter((c) => c.length > 0);
+  perChannelIgnoreSets = initializeIgnoreSets(channels);
+  perChannelLanguages = initializeLanguageConfigs(channels);
+
+  startBot().catch((err) => {
+    console.error('Failed to start bot:', err.message || err);
+    process.exit(1);
+  });
+}
+
+main();
+
+async function startBot() {
 const useOAuthFlow = ['1', 'true', 'yes'].includes((process.env.TWITCH_OAUTH_FLOW || '').toLowerCase());
 const envOAuth = process.env.TWITCH_OAUTH;
 
@@ -133,6 +149,67 @@ async function onMessageHandler(target: string, context: any, msg: string, self:
     return;
   }
 
+  // Language / translate commands handled by broadcaster & mods
+  const parts = message.split(/\s+/);
+  const cmd = (parts[0] || '').toLowerCase();
+  const arg = parts[1];
+
+  const setPrimAliases = new Set(['!setprimlang', '!setprim', '!setprimary']);
+  const setSecAliases = new Set(['!setseclang', '!setsec', '!setsecondary']);
+  const translateAliases = new Set(['!translate', '!translations']);
+
+  if (setPrimAliases.has(cmd) || setSecAliases.has(cmd) || translateAliases.has(cmd)) {
+    if (!isPrivileged) return;
+
+    if (setPrimAliases.has(cmd)) {
+      if (!arg) {
+        client.say(target, '/me Usage: !setprimlang <lang>');
+        return;
+      }
+      setPrimary(channelName, arg);
+      const cfg = perChannelLanguages.get(channelName) || { primary: arg };
+      cfg.primary = arg;
+      perChannelLanguages.set(channelName, cfg);
+      client.say(target, `/me Primary language set to ${arg}`);
+      return;
+    }
+
+    if (setSecAliases.has(cmd)) {
+      if (!arg) {
+        client.say(target, '/me Usage: !setseclang <lang|off>');
+        return;
+      }
+      if (arg.toLowerCase() === 'off') {
+        setSecondary(channelName, null);
+        const cfg = perChannelLanguages.get(channelName) || { primary: process.env.PRIMARY_LANG || 'en' };
+        delete cfg.secondary;
+        perChannelLanguages.set(channelName, cfg);
+        client.say(target, '/me Secondary language disabled');
+        return;
+      }
+      setSecondary(channelName, arg);
+      const cfg2 = perChannelLanguages.get(channelName) || { primary: process.env.PRIMARY_LANG || 'en' };
+      cfg2.secondary = arg;
+      perChannelLanguages.set(channelName, cfg2);
+      client.say(target, `/me Secondary language set to ${arg}`);
+      return;
+    }
+
+    if (translateAliases.has(cmd)) {
+      if (!arg) {
+        client.say(target, '/me Usage: !translate <on|off>');
+        return;
+      }
+      const enabled = arg.toLowerCase() !== 'off' && arg.toLowerCase() !== 'false';
+      setTranslateEnabled(channelName, enabled);
+      const cfg3 = perChannelLanguages.get(channelName) || { primary: process.env.PRIMARY_LANG || 'en' };
+      cfg3.translateEnabled = enabled;
+      perChannelLanguages.set(channelName, cfg3);
+      client.say(target, `/me Translations ${enabled ? 'enabled' : 'disabled'}`);
+      return;
+    }
+  }
+
   message = removeEmotes(message, context).trim();
 
   if (ignoreSet.has(usernameLower)) return;
@@ -141,10 +218,12 @@ async function onMessageHandler(target: string, context: any, msg: string, self:
   await processMessage(client, target, message, channelName, usernameLower, isBroadcaster, ignoreSet, langConfig, context);
 }
 
-createClientAndConnect().catch((err) => {
-  console.error('Failed to start bot:', err.message || err);
-  process.exit(1);
-});
+  await createClientAndConnect().catch((err) => {
+    console.error('Failed to start bot:', err.message || err);
+    process.exit(1);
+  });
+
+}
 
 process.on('SIGINT', () => {
   console.log('\nShutting down...');

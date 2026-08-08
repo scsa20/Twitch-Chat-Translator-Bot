@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import crypto from 'crypto';
 import { CONFIG_DIR } from './config.js';
+import { loadBotConfig, saveBotConfig } from './botConfigStore.js';
 
 const ENCRYPTION_KEY_FILE = join(CONFIG_DIR, 'encryption-key.txt');
 
@@ -72,12 +73,20 @@ const TOKEN_FILE = join(CONFIG_DIR, 'oauth-token.json');
 
 export function loadStoredToken(): StoredToken | null {
   try {
-    if (!existsSync(TOKEN_FILE)) {
-      return null;
+    if (existsSync(TOKEN_FILE)) {
+      const encryptedData = readFileSync(TOKEN_FILE, 'utf-8');
+      const decryptedData = decrypt(encryptedData);
+      return JSON.parse(decryptedData) as StoredToken;
     }
-    const encryptedData = readFileSync(TOKEN_FILE, 'utf-8');
-    const decryptedData = decrypt(encryptedData);
-    return JSON.parse(decryptedData) as StoredToken;
+
+    // fallback to bot_config.json
+    const botCfg = loadBotConfig();
+    const encrypted = botCfg && botCfg.oauth_token_encrypted;
+    if (encrypted) {
+      const decrypted = decrypt(encrypted);
+      return JSON.parse(decrypted) as StoredToken;
+    }
+    return null;
   } catch (err) {
     console.warn('Failed to load stored token:', err);
     return null;
@@ -95,6 +104,13 @@ export function saveToken(
     const jsonData = JSON.stringify(token, null, 2);
     const encryptedData = encrypt(jsonData);
     writeFileSync(TOKEN_FILE, encryptedData, 'utf-8');
+    try {
+      const botCfg = loadBotConfig();
+      botCfg.oauth_token_encrypted = encryptedData;
+      saveBotConfig(botCfg);
+    } catch (e) {
+      /* ignore */
+    }
     console.log('Token saved securely to config directory.');
   } catch (err) {
     console.warn('Failed to save token:', err);

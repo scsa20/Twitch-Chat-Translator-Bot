@@ -76,6 +76,18 @@ Once the bot is running in your channel, you can manage the ignore list with cha
 
 Only broadcasters and moderators can use these commands.
 
+New commands (broadcaster & moderators only):
+
+```
+!setprimlang <lang>       # Set primary language for this channel (aliases: !setprim, !setprimary)
+!setseclang <lang|off>    # Set secondary language or 'off' to disable (aliases: !setsec, !setsecondary)
+!translate <on|off>       # Enable or disable translations for this channel (aliases: !translations)
+```
+
+Configuration storage:
+- Per-channel languages and ignore lists are now centralized in `config/bot_config.json`.
+- On first startup the bot will automatically migrate legacy files (`oauth-token.json`, `channels.json`, `ignore-users-*.json`) into `config/bot_config.json` and rename originals with a `.migrated` suffix.
+
 ## Notes
 
 - The bot translates messages automatically after it joins the channel.

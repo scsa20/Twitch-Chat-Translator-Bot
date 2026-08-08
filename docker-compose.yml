@@ -1,0 +1,20 @@
+version: '3.8'
+services:
+  twitch-translator-bot:
+    image: scsa20/twitch-chat-translator-bot:latest
+    container_name: twitch-translator-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - BOT_USERNAME=${BOT_USERNAME}
+      - CHANNEL_NAME=${CHANNEL_NAME}
+      - PRIMARY_LANG=${PRIMARY_LANG}
+      - AZURE_SUB_KEY=${AZURE_SUB_KEY}
+      # Uncomment to use OAuth flow instead of TWITCH_OAUTH
+      # - TWITCH_OAUTH_FLOW=${TWITCH_OAUTH_FLOW}
+    volumes:
+      - ./config:/app/config
+      - ./data:/data
+    ports:
+      - 3000:3000 # only needed for oauth flow callback during local testing
