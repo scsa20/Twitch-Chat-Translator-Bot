@@ -16,6 +16,22 @@ import {
 } from './tokenManager.js';
 
 dotenv.config();
+
+const BUILT_IN_IGNORED_BOT_USERS = new Set([
+  'streamelements',
+  'streamlabs',
+  'nightbot',
+  'moobot',
+  'fossabot',
+  'phantombot',
+  'ankhbot',
+  'streamerbot',
+  'mixitup',
+  'firebot',
+  'wizebot',
+  'frostytools'
+]);
+
 let perChannelIgnoreSets: Map<string, any> = new Map();
 let perChannelLanguages: Map<string, any> = new Map();
 let botUsername: string;
@@ -212,7 +228,7 @@ async function onMessageHandler(target: string, context: any, msg: string, self:
 
   message = removeEmotes(message, context).trim();
 
-  if (ignoreSet.has(usernameLower)) return;
+  if (ignoreSet.has(usernameLower) || BUILT_IN_IGNORED_BOT_USERS.has(usernameLower)) return;
   if (isBroadcaster || message.length <= 7) return;
 
   await processMessage(client, target, message, channelName, usernameLower, isBroadcaster, ignoreSet, langConfig, context);

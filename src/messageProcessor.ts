@@ -4,6 +4,43 @@ import { detectLanguage, translateMessage } from './translator.js';
 import { IgnoreSet } from './commandHandler.js';
 import { initializeChannelConfigs, ChannelConfig as ChannelLanguageConfig } from './channelConfig.js';
 
+const COMMON_CHAT_EMOTES = new Set([
+  'kappa',
+  'pogchamp',
+  'lul',
+  'kekw',
+  'kreygasm',
+  'biblethump',
+  'kappapride',
+  'pogu',
+  'omegalul',
+  'trihard',
+  'monkas',
+  'wutface',
+  '4head',
+  'poggers',
+  'pjsalt',
+  'notlikethis',
+  'swiftrage',
+  'dansgame',
+  'pepehands',
+  'feelsbadman',
+  'feelsgoodman',
+  'sadge',
+  'pepega',
+  'mindblown',
+  'forsenlol',
+  'widepeepoHappy',
+  'widepeepoSad',
+  'bbclap',
+  'mjalil',
+  'ayaya',
+  'omegalul'
+]);
+
+const URL_REGEX = /(?:https?:\/\/|www\.)\S+|\b\S+\.(?:com|net|io|gg|tv|me|xyz|org|dev|app|co)(?:\/\S*)?/gi;
+const COMMON_EMOTE_REGEX = new RegExp(`\b(${Array.from(COMMON_CHAT_EMOTES).join('|')})\b`, 'gi');
+
 export function initializeLanguageConfigs(channels: string[]): Map<string, ChannelLanguageConfig> {
   const globalPrimary = requireEnv('PRIMARY_LANG');
   const globalSecondary = process.env.SECONDARY_LANG;
@@ -37,17 +74,43 @@ export async function shouldIgnoreMessage(
   return { ignore: false, message: normalizedMessage, channelName, usernameLower, isBroadcaster };
 }
 
+function stripUrls(message: string): string {
+  return message.replace(URL_REGEX, '');
+}
+
+function stripCommonEmoteTokens(message: string): string {
+  return message.replace(COMMON_EMOTE_REGEX, '');
+}
+
 export function removeEmotes(message: string, context: any): string {
-  if (!context?.emotes) return message;
+  let cleaned = stripUrls(message);
 
-  const emotes = Object.values<string>(context.emotes)
-    .map(([positions]) => {
-      const [start, end] = positions.split('-').map(Number);
-      return message.substring(start, end + 1);
-    })
-    .filter(Boolean);
+  if (context?.emotes) {
+    const emotes = Object.values<any>(context.emotes)
+      .flatMap((positions: unknown) => {
+        if (!Array.isArray(positions)) return [];
+        return positions.map((pos) => String(pos));
+      })
+      .map((positions) => positions.split(',')[0])
+      .map((positions) => positions.split('-'))
+      .filter((parts) => parts.length === 2)
+      .map(([start, end]) => {
+        const startNum = Number(start);
+        const endNum = Number(end);
+        if (Number.isNaN(startNum) || Number.isNaN(endNum)) return null;
+        return cleaned.substring(startNum, endNum + 1);
+      })
+      .filter((emote): emote is string => Boolean(emote));
 
-  return emotes.reduce((text, emote) => text.replace(new RegExp(emote, 'g'), ''), message);
+    cleaned = emotes.reduce((text, emote) => text.replace(new RegExp(escapeRegExp(emote), 'g'), ''), cleaned);
+  }
+
+  cleaned = stripCommonEmoteTokens(cleaned);
+  return cleaned.replace(/\s+/g, ' ').trim();
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 export async function processMessage(
